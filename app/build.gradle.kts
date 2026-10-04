@@ -5,6 +5,11 @@ plugins {
 }
 
 fun releaseVersionName(): String {
+    val explicit = System.getenv("RELEASE_VERSION")
+        ?.removePrefix("v")
+        ?.takeIf { it.matches(Regex("\\d+\\.\\d+\\.\\d+(?:[-+].*)?")) }
+    if (explicit != null) return explicit
+
     val fromGitHub = System.getenv("GITHUB_REF_NAME")
         ?.takeIf { it.matches(Regex("v\\d+\\.\\d+\\.\\d+(?:[-+].*)?")) }
         ?.removePrefix("v")
@@ -54,6 +59,13 @@ android {
     }
 
     signingConfigs {
+        create("dev") {
+            storeFile = rootProject.file("dev-signing/dev-signing.jks")
+            storePassword = "openlimitsdev"
+            keyAlias = "open-limits-dev"
+            keyPassword = "openlimitsdev"
+        }
+
         create("release") {
             val path = System.getenv("ANDROID_KEYSTORE_PATH")
             if (!path.isNullOrBlank()) {
@@ -66,6 +78,10 @@ android {
     }
 
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("dev")
+        }
+
         release {
             isMinifyEnabled = true
             proguardFiles(
