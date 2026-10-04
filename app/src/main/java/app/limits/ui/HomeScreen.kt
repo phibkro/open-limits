@@ -41,6 +41,7 @@ fun HomeScreen(
     errors: Map<ProviderId, String>,
     refreshing: Boolean,
     onRefresh: () -> Unit,
+    onHistory: () -> Unit,
     onConnect: (ProviderId) -> Unit,
     onDisconnect: (ProviderId) -> Unit,
 ) {
@@ -49,6 +50,9 @@ fun HomeScreen(
             TopAppBar(
                 title = { Text("Limits") },
                 actions = {
+                    TextButton(onClick = onHistory) {
+                        Text("History")
+                    }
                     TextButton(onClick = onRefresh, enabled = !refreshing) {
                         Text(if (refreshing) "Refreshing…" else "Refresh")
                     }
