@@ -36,8 +36,8 @@ data class QuotaWindow(
     }
 
     private fun estimatedDurationMillis(): Long? = when (id) {
-        "five_hour", "rolling", "primary" -> 5L * 60 * 60 * 1000
-        "seven_day", "weekly", "secondary",
+        "five_hour", "rolling" -> 5L * 60 * 60 * 1000
+        "seven_day", "weekly",
         "seven_day_opus", "seven_day_sonnet" -> 7L * 24 * 60 * 60 * 1000
         else -> null
     }
