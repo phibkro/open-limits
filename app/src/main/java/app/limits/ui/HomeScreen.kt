@@ -31,6 +31,7 @@ import app.limits.domain.ProviderUsage
 import app.limits.domain.QuotaWindow
 import java.time.Duration
 import java.time.Instant
+import java.util.Locale
 import kotlin.math.roundToInt
 
 @Composable
@@ -95,18 +96,43 @@ private fun ProviderSection(
     onDisconnect: () -> Unit,
 ) {
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(provider.displayName, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+        Text(
+            provider.displayName,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.SemiBold,
+        )
         Spacer(Modifier.weight(1f))
-        if (connected) TextButton(onClick = onDisconnect) { Text("Disconnect") }
-        else OutlinedButton(onClick = onConnect) { Text("Connect") }
+        if (connected) {
+            TextButton(onClick = onDisconnect) { Text("Disconnect") }
+        } else {
+            OutlinedButton(onClick = onConnect) { Text("Connect") }
+        }
     }
     Spacer(Modifier.height(8.dp))
 
+    if (!connected) {
+        Text("Not connected", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        return
+    }
+
+    if (error != null) {
+        Text(
+            if (usage != null) "Update failed · showing last known data" else error,
+            color = MaterialTheme.colorScheme.error,
+            style = MaterialTheme.typography.bodySmall,
+        )
+        Spacer(Modifier.height(8.dp))
+    }
+
     when {
-        error != null -> Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-        !connected -> Text("Not connected", color = MaterialTheme.colorScheme.onSurfaceVariant)
-        usage == null -> Text("Waiting for first refresh…", color = MaterialTheme.colorScheme.onSurfaceVariant)
-        usage.windows.isEmpty() -> Text("No quota windows returned", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        usage == null -> Text(
+            "Waiting for first refresh…",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        usage.windows.isEmpty() -> Text(
+            "No quota windows returned",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
         else -> usage.windows.forEach { window ->
             QuotaRow(window)
             Spacer(Modifier.height(14.dp))
@@ -114,10 +140,16 @@ private fun ProviderSection(
     }
 
     usage?.let {
+        val stale = it.isStale()
         Text(
-            "Updated ${formatAge(it.fetchedAtEpochMillis)}",
+            buildString {
+                append("Updated ")
+                append(formatAge(it.fetchedAtEpochMillis))
+                if (stale) append(" · stale")
+            },
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = if (stale) MaterialTheme.colorScheme.error
+                else MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
@@ -125,24 +157,44 @@ private fun ProviderSection(
 @Composable
 private fun QuotaRow(window: QuotaWindow) {
     val used = window.usedPercent.coerceIn(0.0, 100.0)
+    val pace = window.paceRatio()
+
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(window.label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.width(110.dp))
+        Text(
+            window.label,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.width(110.dp),
+        )
         LinearProgressIndicator(
             progress = { (used / 100.0).toFloat() },
             modifier = Modifier.weight(1f).height(8.dp),
         )
         Spacer(Modifier.width(12.dp))
-        Text("${used.roundToInt()}%", style = MaterialTheme.typography.labelLarge, modifier = Modifier.width(44.dp))
-    }
-    window.resetsAtEpochMillis?.let {
         Text(
-            "Resets ${formatReset(it)}",
+            "${used.roundToInt()}%",
+            style = MaterialTheme.typography.labelLarge,
+            modifier = Modifier.width(44.dp),
+        )
+    }
+
+    val detail = buildList {
+        window.resetsAtEpochMillis?.let { add("Resets ${formatReset(it)}") }
+        pace?.let { add("${formatPace(it)} pace") }
+    }.joinToString(" · ")
+
+    if (detail.isNotBlank()) {
+        Text(
+            detail,
             style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = if (pace != null && pace > 1.2) MaterialTheme.colorScheme.error
+                else MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(start = 110.dp),
         )
     }
 }
+
+private fun formatPace(ratio: Double): String =
+    String.format(Locale.US, "%.1f×", ratio.coerceAtMost(9.9))
 
 private fun formatReset(epochMillis: Long): String {
     val duration = Duration.between(Instant.now(), Instant.ofEpochMilli(epochMillis))
