@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Limits</string>
+    <string name="widget_name">Limits</string>
+    <string name="widget_description">Claude, Codex and OpenCode Go usage limits</string>
+</resources>
