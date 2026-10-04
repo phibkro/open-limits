@@ -15,6 +15,7 @@ import androidx.glance.LocalSize
 import androidx.glance.action.actionStartActivity
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
+import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.action.ActionCallback
 import androidx.glance.appwidget.action.actionRunCallback
@@ -36,6 +37,8 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import app.limits.MainActivity
 import app.limits.data.UsageStore
+import app.limits.data.WidgetConfig
+import app.limits.data.WidgetConfigStore
 import app.limits.domain.ProviderId
 import app.limits.domain.ProviderUsage
 import app.limits.sync.UsageRefreshWorker
@@ -51,9 +54,15 @@ class LimitsWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val store = UsageStore(context)
-        val data = store.getAll()
-        val errors = store.getErrors()
+        val allData = store.getAll()
+        val allErrors = store.getErrors()
         val offline = !hasValidatedNetwork(context)
+        val appWidgetId = GlanceAppWidgetManager(context).getAppWidgetId(id)
+        val config = WidgetConfigStore(context).get(appWidgetId)
+
+        val providers = config.provider?.let(::listOf) ?: ProviderId.entries
+        val data = allData.filterKeys { it in providers }
+        val errors = allErrors.filterKeys { it in providers }
 
         provideContent {
             GlanceTheme {
@@ -61,6 +70,8 @@ class LimitsWidget : GlanceAppWidget() {
                     data = data,
                     errors = errors,
                     offline = offline,
+                    providers = providers,
+                    config = config,
                     size = LocalSize.current,
                 )
             }
@@ -73,6 +84,8 @@ private fun WidgetContent(
     data: Map<ProviderId, ProviderUsage>,
     errors: Map<ProviderId, String>,
     offline: Boolean,
+    providers: List<ProviderId>,
+    config: WidgetConfig,
     size: DpSize,
 ) {
     val compact = size.height < 110.dp
@@ -91,7 +104,7 @@ private fun WidgetContent(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                "Limits",
+                config.provider?.displayName ?: "Limits",
                 style = TextStyle(
                     color = GlanceTheme.colors.onSurface,
                     fontSize = 16.sp,
@@ -124,7 +137,7 @@ private fun WidgetContent(
 
         if (data.isEmpty()) {
             Text(
-                "Connect providers",
+                if (config.provider == null) "Connect providers" else "No data yet",
                 style = TextStyle(
                     color = GlanceTheme.colors.onSurface,
                     fontSize = 13.sp,
@@ -134,7 +147,11 @@ private fun WidgetContent(
             if (!compact) {
                 Spacer(GlanceModifier.height(4.dp))
                 Text(
-                    "Tap to set up Claude, Codex or OpenCode Go",
+                    if (config.provider == null) {
+                        "Tap to set up Claude, Codex or OpenCode Go"
+                    } else {
+                        "Tap to connect or refresh ${config.provider.displayName}"
+                    },
                     style = TextStyle(
                         color = GlanceTheme.colors.onSurfaceVariant,
                         fontSize = 10.sp,
@@ -142,14 +159,18 @@ private fun WidgetContent(
                 )
             }
         } else {
-            ProviderId.entries.forEach { provider ->
+            providers.forEach { provider ->
                 ProviderRow(
                     name = provider.displayName,
                     usage = data[provider],
                     width = size.width,
                     hasRefreshError = errors.containsKey(provider),
+                    detailed = config.detailed && !compact,
+                    showName = config.provider == null,
                 )
-                if (!compact) Spacer(GlanceModifier.height(8.dp))
+                if (config.provider == null && config.detailed && !compact) {
+                    Spacer(GlanceModifier.height(8.dp))
+                }
             }
         }
     }
@@ -161,6 +182,8 @@ private fun ProviderRow(
     usage: ProviderUsage?,
     width: Dp,
     hasRefreshError: Boolean,
+    detailed: Boolean,
+    showName: Boolean,
 ) {
     val primary = usage?.primaryWindow
     val percent = primary?.usedPercent?.coerceIn(0.0, 100.0)
@@ -171,15 +194,27 @@ private fun ProviderRow(
             modifier = GlanceModifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                name,
-                style = TextStyle(
-                    color = GlanceTheme.colors.onSurface,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
-                ),
-            )
-            Spacer(GlanceModifier.defaultWeight())
+            if (showName) {
+                Text(
+                    name,
+                    style = TextStyle(
+                        color = GlanceTheme.colors.onSurface,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                    ),
+                )
+                Spacer(GlanceModifier.defaultWeight())
+            }
+            if (!showName && primary != null) {
+                Text(
+                    primary.label,
+                    style = TextStyle(
+                        color = GlanceTheme.colors.onSurfaceVariant,
+                        fontSize = 11.sp,
+                    ),
+                )
+                Spacer(GlanceModifier.defaultWeight())
+            }
             Text(
                 percent?.let {
                     buildString {
@@ -194,12 +229,12 @@ private fun ProviderRow(
             )
         }
 
-        if (width >= 230.dp && percent != null) {
+        if (detailed && width >= 230.dp && percent != null) {
             Spacer(GlanceModifier.height(4.dp))
             ProgressBar(percent, width)
         }
 
-        if (width >= 300.dp && primary != null) {
+        if (detailed && width >= 300.dp && primary != null) {
             val detail = buildList {
                 primary.resetsAtEpochMillis?.let { add(formatReset(it)) }
                 primary.paceRatio()?.let { add("${formatPace(it)} pace") }
