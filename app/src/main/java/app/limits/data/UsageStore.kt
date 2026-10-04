@@ -22,7 +22,26 @@ class UsageStore(context: Context) {
         get(id)?.let { id to it }
     }.toMap()
 
-    fun clear(provider: ProviderId) {
-        prefs.edit().remove(provider.key).apply()
+    fun saveError(provider: ProviderId, message: String) {
+        prefs.edit().putString(errorKey(provider), message).apply()
     }
+
+    fun clearError(provider: ProviderId) {
+        prefs.edit().remove(errorKey(provider)).apply()
+    }
+
+    fun getError(provider: ProviderId): String? = prefs.getString(errorKey(provider), null)
+
+    fun getErrors(): Map<ProviderId, String> = ProviderId.entries.mapNotNull { provider ->
+        getError(provider)?.let { provider to it }
+    }.toMap()
+
+    fun clear(provider: ProviderId) {
+        prefs.edit()
+            .remove(provider.key)
+            .remove(errorKey(provider))
+            .apply()
+    }
+
+    private fun errorKey(provider: ProviderId) = "error_${provider.key}"
 }
