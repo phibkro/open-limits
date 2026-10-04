@@ -31,7 +31,7 @@ class UsageRepository(
     private val _snapshots = MutableStateFlow(store.getAll())
     val snapshots: StateFlow<Map<ProviderId, ProviderUsage>> = _snapshots.asStateFlow()
 
-    private val _errors = MutableStateFlow<Map<ProviderId, String>>(emptyMap())
+    private val _errors = MutableStateFlow(store.getErrors())
     val errors: StateFlow<Map<ProviderId, String>> = _errors.asStateFlow()
 
     private val _connections = MutableStateFlow(connectedSet())
@@ -48,12 +48,14 @@ class UsageRepository(
             result.fold(
                 onSuccess = { usage ->
                     store.save(usage)
+                    store.clearError(id)
                     _snapshots.value = store.getAll()
-                    _errors.value = _errors.value - id
+                    _errors.value = store.getErrors()
                     changed = true
                 },
                 onFailure = { error ->
-                    _errors.value = _errors.value + (id to (error.message ?: "Refresh failed"))
+                    store.saveError(id, error.message ?: "Refresh failed")
+                    _errors.value = store.getErrors()
                 },
             )
         }
@@ -69,11 +71,13 @@ class UsageRepository(
         result.fold(
             onSuccess = {
                 store.save(it)
+                store.clearError(providerId)
                 _snapshots.value = store.getAll()
-                _errors.value = _errors.value - providerId
+                _errors.value = store.getErrors()
             },
             onFailure = {
-                _errors.value = _errors.value + (providerId to (it.message ?: "Refresh failed"))
+                store.saveError(providerId, it.message ?: "Refresh failed")
+                _errors.value = store.getErrors()
             },
         )
         refreshConnections()
@@ -89,7 +93,7 @@ class UsageRepository(
         providers.getValue(providerId).disconnect()
         store.clear(providerId)
         _snapshots.value = store.getAll()
-        _errors.value = _errors.value - providerId
+        _errors.value = store.getErrors()
         refreshConnections()
         onDataChanged()
     }
