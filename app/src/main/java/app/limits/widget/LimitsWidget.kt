@@ -186,7 +186,7 @@ private fun ProviderRow(
     showName: Boolean,
 ) {
     val primary = usage?.primaryWindow
-    val percent = primary?.usedPercent?.coerceIn(0.0, 100.0)
+    val percent = primary?.remainingPercent
     val stale = usage?.isStale() == true
 
     Column(modifier = GlanceModifier.fillMaxWidth()) {
@@ -218,7 +218,7 @@ private fun ProviderRow(
             Text(
                 percent?.let {
                     buildString {
-                        append("${it.roundToInt()}%")
+                        append("${it.roundToInt()}% left")
                         if (hasRefreshError || stale) append(" ·")
                     }
                 } ?: "—",
