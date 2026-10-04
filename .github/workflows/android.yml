@@ -1,4 +1,7 @@
 name: Android CI
+permissions:
+  contents: write
+
 on:
   push:
   pull_request:
@@ -22,3 +25,12 @@ jobs:
         with:
           name: limits-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
+      - name: Publish development APK
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: dev
+          name: Development build
+          prerelease: true
+          make_latest: false
+          files: app/build/outputs/apk/debug/app-debug.apk
