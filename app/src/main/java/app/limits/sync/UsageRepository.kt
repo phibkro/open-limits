@@ -20,11 +20,13 @@ class UsageRepository(
     private val credentials: CredentialStore,
     private val store: UsageStore,
     http: Http,
+    private val onDataChanged: suspend () -> Unit = {},
 ) {
     val claude = ClaudeProvider(credentials, http)
     val codex = CodexProvider(credentials, http)
     val openCode = OpenCodeProvider(credentials, http)
-    private val providers: Map<ProviderId, QuotaProvider> = listOf(claude, codex, openCode).associateBy { it.id }
+    private val providers: Map<ProviderId, QuotaProvider> =
+        listOf(claude, codex, openCode).associateBy { it.id }
 
     private val _snapshots = MutableStateFlow(store.getAll())
     val snapshots: StateFlow<Map<ProviderId, ProviderUsage>> = _snapshots.asStateFlow()
@@ -36,32 +38,46 @@ class UsageRepository(
     val connections: StateFlow<Set<ProviderId>> = _connections.asStateFlow()
 
     suspend fun refreshAll() = coroutineScope {
-        providers.values.filter { it.isConnected() }.map { provider ->
-            async { provider.id to runCatching { provider.fetch() } }
-        }.forEach { deferred ->
+        val pending = providers.values
+            .filter { it.isConnected() }
+            .map { provider -> async { provider.id to runCatching { provider.fetch() } } }
+
+        var changed = false
+        for (deferred in pending) {
             val (id, result) = deferred.await()
-            result.onSuccess { usage ->
-                store.save(usage)
-                _snapshots.value = store.getAll()
-                _errors.value = _errors.value - id
-            }.onFailure { error ->
-                _errors.value = _errors.value + (id to (error.message ?: "Refresh failed"))
-            }
+            result.fold(
+                onSuccess = { usage ->
+                    store.save(usage)
+                    _snapshots.value = store.getAll()
+                    _errors.value = _errors.value - id
+                    changed = true
+                },
+                onFailure = { error ->
+                    _errors.value = _errors.value + (id to (error.message ?: "Refresh failed"))
+                },
+            )
         }
         refreshConnections()
+        if (changed) onDataChanged()
     }
 
     suspend fun refresh(providerId: ProviderId) {
         val provider = providers.getValue(providerId)
         if (!provider.isConnected()) return
-        runCatching { provider.fetch() }
-            .onSuccess {
+
+        val result = runCatching { provider.fetch() }
+        result.fold(
+            onSuccess = {
                 store.save(it)
                 _snapshots.value = store.getAll()
                 _errors.value = _errors.value - providerId
-            }
-            .onFailure { _errors.value = _errors.value + (providerId to (it.message ?: "Refresh failed")) }
+            },
+            onFailure = {
+                _errors.value = _errors.value + (providerId to (it.message ?: "Refresh failed"))
+            },
+        )
         refreshConnections()
+        if (result.isSuccess) onDataChanged()
     }
 
     fun saveOpenCodeKey(key: String) {
@@ -69,15 +85,19 @@ class UsageRepository(
         refreshConnections()
     }
 
-    fun disconnect(providerId: ProviderId) {
+    suspend fun disconnect(providerId: ProviderId) {
         providers.getValue(providerId).disconnect()
         store.clear(providerId)
         _snapshots.value = store.getAll()
         _errors.value = _errors.value - providerId
         refreshConnections()
+        onDataChanged()
     }
 
-    fun refreshConnections() { _connections.value = connectedSet() }
+    fun refreshConnections() {
+        _connections.value = connectedSet()
+    }
 
-    private fun connectedSet() = providers.values.filter { it.isConnected() }.map { it.id }.toSet()
+    private fun connectedSet() =
+        providers.values.filter { it.isConnected() }.map { it.id }.toSet()
 }
