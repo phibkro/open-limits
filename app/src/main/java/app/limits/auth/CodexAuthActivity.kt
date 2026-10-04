@@ -30,10 +30,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.lifecycleScope
 import app.limits.ServiceLocator
 import app.limits.domain.ProviderId
 import app.limits.providers.CodexProvider
 import app.limits.ui.LimitsTheme
+import kotlinx.coroutines.launch
 
 class CodexAuthActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -72,7 +74,7 @@ class CodexAuthActivity : ComponentActivity() {
                                 onClick = {
                                     busy = true
                                     error = null
-                                    androidx.lifecycle.lifecycleScope.launchWhenStarted {
+                                    lifecycleScope.launch {
                                         runCatching {
                                             ServiceLocator.repository.codex.completeDeviceLogin(current)
                                             ServiceLocator.repository.refresh(ProviderId.CODEX)
