@@ -30,6 +30,15 @@ val limitsVersionCode = limitsVersionName.substringBefore('-').substringBefore('
         (parts.getOrNull(2)?.toIntOrNull() ?: 0)
 }.coerceAtLeast(1)
 
+val isDevelopmentBuild = System.getenv("LIMITS_DEV_BUILD") == "true"
+val developmentRunNumber = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 0
+val appVersionCode = if (isDevelopmentBuild) 1_000_000 + developmentRunNumber else limitsVersionCode
+val appVersionName = if (isDevelopmentBuild) {
+    "$limitsVersionName-dev.$developmentRunNumber"
+} else {
+    limitsVersionName
+}
+
 android {
     namespace = "app.limits"
     compileSdk = 36
@@ -39,8 +48,8 @@ android {
         applicationId = "app.limits"
         minSdk = 31
         targetSdk = 36
-        versionCode = limitsVersionCode
-        versionName = limitsVersionName
+        versionCode = appVersionCode
+        versionName = appVersionName
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
