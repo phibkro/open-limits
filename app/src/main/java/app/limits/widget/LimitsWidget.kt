@@ -80,9 +80,30 @@ private fun WidgetContent(data: Map<ProviderId, ProviderUsage>, size: DpSize) {
             )
         }
         if (!compact) Spacer(GlanceModifier.height(10.dp))
-        ProviderId.entries.forEach { provider ->
-            ProviderRow(provider.displayName, data[provider], size.width)
-            if (!compact) Spacer(GlanceModifier.height(8.dp))
+        if (data.isEmpty()) {
+            Text(
+                "Connect providers",
+                style = TextStyle(
+                    color = GlanceTheme.colors.onSurface,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                ),
+            )
+            if (!compact) {
+                Spacer(GlanceModifier.height(4.dp))
+                Text(
+                    "Tap to set up Claude, Codex or OpenCode Go",
+                    style = TextStyle(
+                        color = GlanceTheme.colors.onSurfaceVariant,
+                        fontSize = 10.sp,
+                    ),
+                )
+            }
+        } else {
+            ProviderId.entries.forEach { provider ->
+                ProviderRow(provider.displayName, data[provider], size.width)
+                if (!compact) Spacer(GlanceModifier.height(8.dp))
+            }
         }
     }
 }
