@@ -2,6 +2,10 @@ name: Android CI
 permissions:
   contents: write
 
+concurrency:
+  group: android-ci-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
   pull_request:
