@@ -24,5 +24,7 @@ class MainViewModel : ViewModel() {
         _refreshing.value = false
     }
 
-    fun disconnect(provider: ProviderId) = repository.disconnect(provider)
+    fun disconnect(provider: ProviderId) = viewModelScope.launch {
+        repository.disconnect(provider)
+    }
 }
