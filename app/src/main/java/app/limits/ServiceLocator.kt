@@ -1,10 +1,12 @@
 package app.limits
 
 import android.content.Context
+import androidx.glance.appwidget.updateAll
 import app.limits.data.CredentialStore
 import app.limits.data.UsageStore
 import app.limits.network.Http
 import app.limits.sync.UsageRepository
+import app.limits.widget.LimitsWidget
 
 object ServiceLocator {
     @Volatile private var repositoryInstance: UsageRepository? = null
@@ -13,7 +15,12 @@ object ServiceLocator {
         if (repositoryInstance == null) synchronized(this) {
             if (repositoryInstance == null) {
                 val app = context.applicationContext
-                repositoryInstance = UsageRepository(CredentialStore(app), UsageStore(app), Http())
+                repositoryInstance = UsageRepository(
+                    credentials = CredentialStore(app),
+                    store = UsageStore(app),
+                    http = Http(),
+                    onDataChanged = { LimitsWidget().updateAll(app) },
+                )
             }
         }
     }
