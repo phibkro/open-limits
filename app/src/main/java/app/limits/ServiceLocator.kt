@@ -7,7 +7,9 @@ import app.limits.data.UsageHistoryStore
 import app.limits.data.UsageStore
 import app.limits.network.Http
 import app.limits.sync.UsageRepository
+import app.limits.widget.ComparisonLimitsWidget
 import app.limits.widget.LimitsWidget
+import app.limits.widget.RadialLimitsWidget
 
 object ServiceLocator {
     @Volatile private var repositoryInstance: UsageRepository? = null
@@ -21,7 +23,11 @@ object ServiceLocator {
                     store = UsageStore(app),
                     historyStore = UsageHistoryStore(app),
                     http = Http(),
-                    onDataChanged = { LimitsWidget().updateAll(app) },
+                    onDataChanged = {
+                        LimitsWidget().updateAll(app)
+                        RadialLimitsWidget().updateAll(app)
+                        ComparisonLimitsWidget().updateAll(app)
+                    },
                 )
             }
         }
