@@ -1,7 +1,6 @@
 package app.limits.sync
 
 import app.limits.data.CredentialStore
-import app.limits.data.OpenCodeCredential
 import app.limits.data.UsageHistoryStore
 import app.limits.data.UsageStore
 import app.limits.domain.ProviderId
@@ -89,9 +88,15 @@ class UsageRepository(
         if (result.isSuccess) onDataChanged()
     }
 
-    fun saveOpenCodeKey(key: String) {
-        credentials.saveOpenCode(OpenCodeCredential(key.trim()))
+    suspend fun connectOpenCode(key: String) {
+        val usage = openCode.connect(key)
+        store.save(usage)
+        historyStore.append(usage)
+        store.clearError(ProviderId.OPENCODE_GO)
+        _snapshots.value = store.getAll()
+        _errors.value = store.getErrors()
         refreshConnections()
+        onDataChanged()
     }
 
     suspend fun disconnect(providerId: ProviderId) {
