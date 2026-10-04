@@ -3,6 +3,7 @@ package app.limits
 import android.content.Context
 import androidx.glance.appwidget.updateAll
 import app.limits.data.CredentialStore
+import app.limits.data.UsageHistoryStore
 import app.limits.data.UsageStore
 import app.limits.network.Http
 import app.limits.sync.UsageRepository
@@ -18,6 +19,7 @@ object ServiceLocator {
                 repositoryInstance = UsageRepository(
                     credentials = CredentialStore(app),
                     store = UsageStore(app),
+                    historyStore = UsageHistoryStore(app),
                     http = Http(),
                     onDataChanged = { LimitsWidget().updateAll(app) },
                 )
