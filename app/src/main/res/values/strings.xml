@@ -2,5 +2,9 @@
 <resources>
     <string name="app_name">Limits</string>
     <string name="widget_name">Limits</string>
-    <string name="widget_description">Claude, Codex and OpenCode Go usage limits</string>
+    <string name="widget_description">Remaining limits as a provider list</string>
+    <string name="radial_widget_name">Limits Radial</string>
+    <string name="radial_widget_description">Layered radial remaining-limit clock for one provider</string>
+    <string name="comparison_widget_name">Limits Compare</string>
+    <string name="comparison_widget_description">Compare 5-hour, weekly and total remaining limits across providers</string>
 </resources>
