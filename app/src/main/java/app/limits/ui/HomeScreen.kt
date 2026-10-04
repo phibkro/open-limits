@@ -160,7 +160,7 @@ private fun ProviderSection(
 
 @Composable
 private fun QuotaRow(window: QuotaWindow) {
-    val used = window.usedPercent.coerceIn(0.0, 100.0)
+    val remaining = window.remainingPercent
     val pace = window.paceRatio()
 
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -170,14 +170,14 @@ private fun QuotaRow(window: QuotaWindow) {
             modifier = Modifier.width(110.dp),
         )
         LinearProgressIndicator(
-            progress = { (used / 100.0).toFloat() },
+            progress = { (remaining / 100.0).toFloat() },
             modifier = Modifier.weight(1f).height(8.dp),
         )
         Spacer(Modifier.width(12.dp))
         Text(
-            "${used.roundToInt()}%",
+            "${remaining.roundToInt()}% left",
             style = MaterialTheme.typography.labelLarge,
-            modifier = Modifier.width(44.dp),
+            modifier = Modifier.width(64.dp),
         )
     }
 
