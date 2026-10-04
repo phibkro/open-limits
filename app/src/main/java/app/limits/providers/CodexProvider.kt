@@ -1,5 +1,6 @@
 package app.limits.providers
 
+import android.net.Uri
 import android.util.Base64
 import app.limits.data.CodexCredential
 import app.limits.data.CredentialStore
@@ -7,6 +8,8 @@ import app.limits.domain.ProviderId
 import app.limits.domain.ProviderUsage
 import app.limits.domain.QuotaWindow
 import app.limits.network.Http
+import java.security.MessageDigest
+import java.security.SecureRandom
 import java.time.Instant
 import kotlinx.coroutines.delay
 import kotlinx.serialization.SerialName
@@ -44,6 +47,62 @@ class CodexProvider(
         return ProviderUsage(provider = id, windows = windows)
     }
 
+    fun createBrowserLogin(redirectUri: String): BrowserLogin {
+        val verifier = randomUrlSafe(48)
+        val challenge = Base64.encodeToString(
+            MessageDigest.getInstance("SHA-256").digest(verifier.toByteArray()),
+            Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING,
+        )
+        val state = randomUrlSafe(24)
+        val url = Uri.parse("$AUTH_BASE/oauth/authorize").buildUpon()
+            .appendQueryParameter("response_type", "code")
+            .appendQueryParameter("client_id", CLIENT_ID)
+            .appendQueryParameter("redirect_uri", redirectUri)
+            .appendQueryParameter(
+                "scope",
+                "openid profile email offline_access api.connectors.read api.connectors.invoke",
+            )
+            .appendQueryParameter("code_challenge", challenge)
+            .appendQueryParameter("code_challenge_method", "S256")
+            .appendQueryParameter("state", state)
+            .appendQueryParameter("id_token_add_organizations", "true")
+            .appendQueryParameter("codex_cli_simplified_flow", "true")
+            .appendQueryParameter("originator", "codex_cli_rs")
+            .build()
+            .toString()
+
+        return BrowserLogin(
+            authorizationUrl = url,
+            redirectUri = redirectUri,
+            verifier = verifier,
+            state = state,
+        )
+    }
+
+    suspend fun completeBrowserLogin(
+        login: BrowserLogin,
+        code: String,
+        returnedState: String,
+    ): CodexCredential {
+        require(returnedState == login.state) { "Codex OAuth state did not match" }
+
+        val response = http.postForm(
+            "$AUTH_BASE/oauth/token",
+            mapOf(
+                "grant_type" to "authorization_code",
+                "client_id" to CLIENT_ID,
+                "code" to code,
+                "redirect_uri" to login.redirectUri,
+                "code_verifier" to login.verifier,
+            ),
+            mapOf("Accept" to "application/json"),
+        )
+        if (response.code !in 200..299) {
+            error("Codex browser token exchange failed (${response.code})")
+        }
+        return storeTokens(json.decodeFromString(response.body))
+    }
+
     suspend fun startDeviceLogin(): DeviceCode {
         val response = http.postJson(
             "$AUTH_BASE/api/accounts/deviceauth/usercode",
@@ -75,7 +134,8 @@ class CodexProvider(
             )
             when {
                 response.code in 200..299 -> authorization = json.decodeFromString(response.body)
-                response.code == 403 || response.code == 404 -> delay(device.intervalSeconds.coerceAtLeast(1) * 1000L)
+                response.code == 403 || response.code == 404 ->
+                    delay(device.intervalSeconds.coerceAtLeast(1) * 1000L)
                 else -> error("Codex authorization failed (${response.code})")
             }
         }
@@ -92,17 +152,7 @@ class CodexProvider(
             mapOf("Accept" to "application/json"),
         )
         if (response.code !in 200..299) error("Codex token exchange failed (${response.code})")
-        val token = json.decodeFromString<TokenDto>(response.body)
-        val access = token.accessToken ?: error("Codex token exchange omitted access token")
-        val refresh = token.refreshToken ?: error("Codex token exchange omitted refresh token")
-        val credential = CodexCredential(
-            accessToken = access,
-            refreshToken = refresh,
-            idToken = token.idToken,
-            accountId = accountId(token.idToken, access),
-        )
-        credentials.saveCodex(credential)
-        return credential
+        return storeTokens(json.decodeFromString(response.body))
     }
 
     override fun disconnect() = credentials.clearCodex()
@@ -119,7 +169,8 @@ class CodexProvider(
 
     private suspend fun ensureFresh(credential: CodexCredential): CodexCredential {
         val exp = jwtPayload(credential.accessToken)?.get("exp")?.jsonPrimitive?.content?.toLongOrNull()
-        return if (exp != null && exp <= Instant.now().epochSecond + 300) refresh(credential) else credential
+        return if (exp != null && exp <= Instant.now().epochSecond + 300) refresh(credential)
+        else credential
     }
 
     private suspend fun refresh(credential: CodexCredential): CodexCredential {
@@ -143,6 +194,19 @@ class CodexProvider(
         )
         credentials.saveCodex(updated)
         return updated
+    }
+
+    private fun storeTokens(token: TokenDto): CodexCredential {
+        val access = token.accessToken ?: error("Codex token exchange omitted access token")
+        val refresh = token.refreshToken ?: error("Codex token exchange omitted refresh token")
+        val credential = CodexCredential(
+            accessToken = access,
+            refreshToken = refresh,
+            idToken = token.idToken,
+            accountId = accountId(token.idToken, access),
+        )
+        credentials.saveCodex(credential)
+        return credential
     }
 
     private fun WindowDto.toDomain(index: Int): QuotaWindow {
@@ -190,6 +254,21 @@ class CodexProvider(
         json.parseToJsonElement(String(bytes, Charsets.UTF_8)).jsonObject
     }.getOrNull()
 
+    private fun randomUrlSafe(bytes: Int): String {
+        val value = ByteArray(bytes).also { SecureRandom().nextBytes(it) }
+        return Base64.encodeToString(
+            value,
+            Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING,
+        )
+    }
+
+    data class BrowserLogin(
+        val authorizationUrl: String,
+        val redirectUri: String,
+        val verifier: String,
+        val state: String,
+    )
+
     data class DeviceCode(
         val verificationUrl: String,
         val userCode: String,
@@ -215,7 +294,9 @@ class CodexProvider(
         @SerialName("access_token") val accessToken: String? = null,
         @SerialName("refresh_token") val refreshToken: String? = null,
     )
-    @Serializable private data class UsageDto(@SerialName("rate_limit") val rateLimit: RateLimitDto? = null)
+    @Serializable private data class UsageDto(
+        @SerialName("rate_limit") val rateLimit: RateLimitDto? = null,
+    )
     @Serializable private data class RateLimitDto(
         @SerialName("primary_window") val primaryWindow: WindowDto? = null,
         @SerialName("secondary_window") val secondaryWindow: WindowDto? = null,
