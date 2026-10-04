@@ -21,6 +21,20 @@
             </intent-filter>
         </activity>
         <activity
+            android:name=".widget.RadialWidgetConfigActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name=".widget.ComparisonWidgetConfigActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+        <activity
             android:name=".auth.OpenCodeAuthActivity"
             android:exported="false" />
         <activity
@@ -40,13 +54,38 @@
 
         <receiver
             android:name=".widget.LimitsWidgetReceiver"
-            android:exported="true">
+            android:exported="true"
+            android:label="@string/widget_name">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/limits_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.RadialLimitsWidgetReceiver"
+            android:exported="true"
+            android:label="@string/radial_widget_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/radial_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.ComparisonLimitsWidgetReceiver"
+            android:exported="true"
+            android:label="@string/comparison_widget_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/comparison_widget_info" />
         </receiver>
     </application>
 </manifest>
