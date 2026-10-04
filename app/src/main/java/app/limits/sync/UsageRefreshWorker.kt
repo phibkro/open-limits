@@ -1,7 +1,6 @@
 package app.limits.sync
 
 import android.content.Context
-import androidx.glance.appwidget.updateAll
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
@@ -12,14 +11,12 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import app.limits.ServiceLocator
-import app.limits.widget.LimitsWidget
 import java.util.concurrent.TimeUnit
 
 class UsageRefreshWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result = runCatching {
         ServiceLocator.init(applicationContext)
         ServiceLocator.repository.refreshAll()
-        LimitsWidget().updateAll(applicationContext)
     }.fold(onSuccess = { Result.success() }, onFailure = { Result.retry() })
 
     companion object {
