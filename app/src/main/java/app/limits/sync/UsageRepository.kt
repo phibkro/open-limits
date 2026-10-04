@@ -2,6 +2,7 @@ package app.limits.sync
 
 import app.limits.data.CredentialStore
 import app.limits.data.OpenCodeCredential
+import app.limits.data.UsageHistoryStore
 import app.limits.data.UsageStore
 import app.limits.domain.ProviderId
 import app.limits.domain.ProviderUsage
@@ -19,6 +20,7 @@ import kotlinx.coroutines.flow.asStateFlow
 class UsageRepository(
     private val credentials: CredentialStore,
     private val store: UsageStore,
+    private val historyStore: UsageHistoryStore,
     http: Http,
     private val onDataChanged: suspend () -> Unit = {},
 ) {
@@ -33,6 +35,7 @@ class UsageRepository(
 
     private val _errors = MutableStateFlow(store.getErrors())
     val errors: StateFlow<Map<ProviderId, String>> = _errors.asStateFlow()
+    val history = historyStore.samples
 
     private val _connections = MutableStateFlow(connectedSet())
     val connections: StateFlow<Set<ProviderId>> = _connections.asStateFlow()
@@ -48,6 +51,7 @@ class UsageRepository(
             result.fold(
                 onSuccess = { usage ->
                     store.save(usage)
+                    historyStore.append(usage)
                     store.clearError(id)
                     _snapshots.value = store.getAll()
                     _errors.value = store.getErrors()
@@ -71,6 +75,7 @@ class UsageRepository(
         result.fold(
             onSuccess = {
                 store.save(it)
+                historyStore.append(it)
                 store.clearError(providerId)
                 _snapshots.value = store.getAll()
                 _errors.value = store.getErrors()
@@ -96,6 +101,10 @@ class UsageRepository(
         _errors.value = store.getErrors()
         refreshConnections()
         onDataChanged()
+    }
+
+    fun clearHistory() {
+        historyStore.clear()
     }
 
     fun refreshConnections() {
