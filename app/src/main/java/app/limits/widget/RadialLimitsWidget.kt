@@ -9,7 +9,7 @@ import android.graphics.Path
 import android.graphics.RectF
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.DpSize
-import androidx.glance.ContentScale
+import androidx.glance.layout.ContentScale
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
