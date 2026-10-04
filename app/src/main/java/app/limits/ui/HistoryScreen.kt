@@ -120,7 +120,7 @@ private fun HistoryWindow(samples: List<UsageHistorySample>) {
     ) {
         Text(latest.windowLabel, style = MaterialTheme.typography.titleSmall)
         Text(
-            "${latest.usedPercent.roundToInt()}%",
+            "${(100.0 - latest.usedPercent).coerceIn(0.0, 100.0).roundToInt()}% left",
             style = MaterialTheme.typography.labelLarge,
         )
     }
@@ -145,7 +145,8 @@ private fun HistoryWindow(samples: List<UsageHistorySample>) {
         )
 
         if (sorted.size == 1) {
-            val y = size.height * (1f - (sorted.first().usedPercent / 100.0).toFloat().coerceIn(0f, 1f))
+            val remaining = (100.0 - sorted.first().usedPercent).coerceIn(0.0, 100.0)
+            val y = size.height * (1f - (remaining / 100.0).toFloat())
             drawCircle(color = color, radius = 3.dp.toPx(), center = Offset(size.width, y))
             return@Canvas
         }
@@ -157,7 +158,8 @@ private fun HistoryWindow(samples: List<UsageHistorySample>) {
         sorted.forEachIndexed { index, sample ->
             val x = ((sample.capturedAtEpochMillis - minTime).toFloat() /
                 (maxTime - minTime).toFloat()) * size.width
-            val y = size.height * (1f - (sample.usedPercent / 100.0).toFloat().coerceIn(0f, 1f))
+            val remaining = (100.0 - sample.usedPercent).coerceIn(0.0, 100.0)
+            val y = size.height * (1f - (remaining / 100.0).toFloat())
             if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
         }
 
