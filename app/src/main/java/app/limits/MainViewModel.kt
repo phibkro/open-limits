@@ -18,13 +18,17 @@ class MainViewModel : ViewModel() {
     private val _refreshing = MutableStateFlow(false)
     val refreshing: StateFlow<Boolean> = _refreshing.asStateFlow()
 
-    fun refresh() = viewModelScope.launch {
-        _refreshing.value = true
-        runCatching { repository.refreshAll() }
-        _refreshing.value = false
+    fun refresh() {
+        viewModelScope.launch {
+            _refreshing.value = true
+            runCatching { repository.refreshAll() }
+            _refreshing.value = false
+        }
     }
 
-    fun disconnect(provider: ProviderId) = viewModelScope.launch {
-        repository.disconnect(provider)
+    fun disconnect(provider: ProviderId) {
+        viewModelScope.launch {
+            repository.disconnect(provider)
+        }
     }
 }
