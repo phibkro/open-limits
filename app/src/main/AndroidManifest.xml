@@ -4,7 +4,7 @@
 
     <application
         android:name=".LimitsApplication"
-        android:allowBackup="false"
+        android:allowBackup="false"\n        android:icon="@mipmap/ic_launcher"\n        android:roundIcon="@mipmap/ic_launcher_round"
         android:label="Limits"
         android:supportsRtl="true"
         android:theme="@style/Theme.Limits"
