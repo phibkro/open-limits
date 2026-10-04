@@ -14,6 +14,7 @@ class MainViewModel : ViewModel() {
     val snapshots = repository.snapshots
     val connections = repository.connections
     val errors = repository.errors
+    val history = repository.history
 
     private val _refreshing = MutableStateFlow(false)
     val refreshing: StateFlow<Boolean> = _refreshing.asStateFlow()
@@ -24,6 +25,10 @@ class MainViewModel : ViewModel() {
             runCatching { repository.refreshAll() }
             _refreshing.value = false
         }
+    }
+
+    fun clearHistory() {
+        repository.clearHistory()
     }
 
     fun disconnect(provider: ProviderId) {
