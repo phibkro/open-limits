@@ -18,6 +18,9 @@ data class QuotaWindow(
     val resetsAtEpochMillis: Long? = null,
     val status: String? = null,
 ) {
+    val remainingPercent: Double
+        get() = (100.0 - usedPercent).coerceIn(0.0, 100.0)
+
     /**
      * Ratio between quota consumed and time elapsed in the current window.
      *
