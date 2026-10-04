@@ -32,8 +32,8 @@ val limitsVersionCode = limitsVersionName.substringBefore('-').substringBefore('
 
 android {
     namespace = "app.limits"
-    compileSdk = 37
-    buildToolsVersion = "37.0.0"
+    compileSdk = 36
+    buildToolsVersion = "36.0.0"
 
     defaultConfig {
         applicationId = "app.limits"
